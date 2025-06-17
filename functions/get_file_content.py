@@ -17,7 +17,7 @@ def get_file_content(working_directory, file_path):
             return f'Error: Cannot list "{file_path}" as it is outside the permitted working directory'
 
         if os.path.isfile(dir_abs)==False:
-            f'Error: File not found or is not a regular file: "{file_path}"'
+            return f'Error: File not found or is not a regular file: "{file_path}"'
 
         Max_char=10000
         with open(dir_abs, "r") as f:
