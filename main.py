@@ -6,7 +6,7 @@ from google.genai import types
 from dotenv import load_dotenv
 
 from prompts import system_prompt
-from call_function import available_functions
+from call_function import available_functions, call_function
 
 def main():
     load_dotenv()
@@ -39,8 +39,7 @@ def generate_content(client, messages, verbose):
     response=client.models.generate_content(model="gemini-2.0-flash-001", contents=messages, 
     config=types.GenerateContentConfig(
         tools=[available_functions], system_instruction=system_prompt))
-
-
+    
     if verbose:
         x=response.usage_metadata.prompt_token_count
         y=response.usage_metadata.candidates_token_count
@@ -50,8 +49,23 @@ def generate_content(client, messages, verbose):
     if not response.function_calls:
         return response.text
 
+
     for function_call_part in response.function_calls:
-        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+        function_call_result=call_function(function_call_part)
+
+        if not function_call_result.parts :
+            raise Exception("Function parts not found")
+        
+        
+        if not function_call_result.parts[0].function_response:
+            raise Exception("Function response not found")
+
+        if not function_call_result.parts[0].function_response.response:
+            raise Exception("Response not found")
+        
+        if verbose:
+            print(f"-> {function_call_result.parts[0].function_response.response}")
+
 
     
 
