@@ -30,42 +30,67 @@ def main():
 
     messages = [types.Content(role="user", parts=[types.Part(text=user_prompt)])]
 
-    generate_content(client, messages, verbose)
+
+    iters = 0
+    MAX_ITERS=20
+    while True:
+        iters += 1
+        if iters > MAX_ITERS:
+            print(f"Maximum iterations ({MAX_ITERS}) reached.")
+            sys.exit(1)
+        try:
+            final_response = generate_content(client, messages, verbose)
+            if final_response:
+                print("Final response:")
+                print(final_response)
+                break
+        except Exception as e:
+            print(f"Error in generate_content: {e}")
 
 
 
 def generate_content(client, messages, verbose):
-
+    
     response=client.models.generate_content(model="gemini-2.0-flash-001", contents=messages, 
     config=types.GenerateContentConfig(
         tools=[available_functions], system_instruction=system_prompt))
-    
-    if verbose:
-        x=response.usage_metadata.prompt_token_count
-        y=response.usage_metadata.candidates_token_count
-        print(f"Prompt tokens: {x}")
-        print(f"Response tokens: {y}")
 
+    if verbose:
+            x=response.usage_metadata.prompt_token_count
+            y=response.usage_metadata.candidates_token_count
+            print(f"Prompt tokens: {x}")
+            print(f"Response tokens: {y}")
+
+    if response.candidates:
+        for candidate in response.candidates:
+            messages.append(candidate.content)
+    
+    #if not a function
     if not response.function_calls:
         return response.text
 
-
-    for function_call_part in response.function_calls:
-        function_call_result=call_function(function_call_part)
+    #if it is function
+    function_response=[]
+    for function_call in response.function_calls:
+        function_call_result = call_function(function_call,verbose)
 
         if not function_call_result.parts :
             raise Exception("Function parts not found")
-        
-        
         if not function_call_result.parts[0].function_response:
             raise Exception("Function response not found")
-
         if not function_call_result.parts[0].function_response.response:
             raise Exception("Response not found")
-        
-        if verbose:
-            print(f"-> {function_call_result.parts[0].function_response.response}")
 
+        function_response.append(function_call_result.parts[0])
+    
+    
+    if not function_response:
+        raise Exception("No function responses")
+
+    messages.append(types.Content(role="tool", parts=function_response))
+
+
+   
 
     
 
